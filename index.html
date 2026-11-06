@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Music Theorizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=VT323&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <button class="btn" id="tour-again" title="A one-minute tour of every screen, the toolbar and the settings">❓ Getting started</button>
+    <nav class="tabs" role="tablist" aria-label="Modes">
+      <button class="tab" role="tab" id="tab-free" data-mode="free" aria-selected="true">Free Play</button>
+      <button class="tab" role="tab" id="tab-scale" data-mode="scale" aria-selected="false">Scale Mode</button>
+      <button class="tab" role="tab" id="tab-jam" data-mode="jam" aria-selected="false">Jam Mode</button>
+      <button class="tab" role="tab" id="tab-learn" data-mode="learn" aria-selected="false">Exercises</button>
+      <button class="tab" role="tab" id="tab-settings" data-mode="settings" aria-selected="false">Settings</button>
+    </nav>
+    <button class="btn" id="coach-toggle" aria-pressed="false" aria-controls="coach">💬 AI Coach</button>
+  </header>
+
+  <section class="controls" aria-label="Instrument settings">
+    <label id="strip-preset">Instrument <select id="preset"></select></label>
+    <div class="sound-menu">
+      <button class="btn small icon" id="sound-btn" aria-haspopup="true" aria-expanded="false" aria-controls="sound-pop" title="Instrument settings" aria-label="Instrument settings">⚙</button>
+      <div class="sound-pop" id="sound-pop" role="dialog" aria-labelledby="sound-pop-title" hidden>
+        <p class="sound-pop-title" id="sound-pop-title">Instrument settings</p>
+        <label>Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+        <label data-adv>Reverb <input id="reverb" type="range" min="0" max="0.8" step="0.01" value="0.2"></label>
+        <label>Song volume in Jam Mode <input id="set-track-vol" type="range" min="0" max="1" step="0.01" value="0.7"></label>
+      </div>
+    </div>
+    <div class="sound-menu metro-menu">
+      <button class="btn small" id="metro-btn" aria-pressed="false" title="Metronome on/off" aria-label="Metronome"><span class="metro-led" id="metro-led" aria-hidden="true"></span><svg class="metro-ico" viewBox="0 0 24 24" aria-hidden="true"><path class="metro-body" d="M9 2.5h6l4.5 19h-15z"/><path class="metro-face" d="M7.2 16.5h9.6"/><g class="metro-arm" id="metro-arm"><path d="M12 16.5 12 4.5"/><rect x="10.4" y="7.5" width="3.2" height="2.4" rx=".6"/></g></svg><span class="mono" id="metro-label">100</span></button>
+      <button class="btn small icon" id="metro-more" aria-haspopup="true" aria-expanded="false" aria-controls="metro-pop" title="Metronome settings" aria-label="Metronome settings">⚙</button>
+      <div class="sound-pop" id="metro-pop" role="dialog" aria-labelledby="metro-pop-title" hidden>
+        <p class="sound-pop-title" id="metro-pop-title">Metronome</p>
+        <label>Tempo <span class="row" style="gap:6px"><input id="metro-bpm-range" type="range" min="30" max="240" step="1" value="100" aria-label="Tempo slider"><input id="metro-bpm" type="number" min="30" max="240" step="1" value="100" style="width:4.5em" aria-label="Tempo in BPM"> BPM</span></label>
+        <div class="row" style="gap:6px"><button class="btn small" id="metro-tap" title="Tap this button in time to set the tempo">Tap tempo</button><span class="note" id="metro-tap-note"></span></div>
+        <label>Beats per bar
+          <select id="metro-bpb"><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select>
+        </label>
+        <label>Click volume <input id="metro-vol" type="range" min="0" max="1" step="0.01" value="0.7"></label>
+        <label class="check"><input id="metro-sound" type="checkbox" checked> Click sound (off: lights only)</label>
+        <label class="check"><input id="metro-follow" type="checkbox" checked> In Jam Mode, follow the song's beat and tempo</label>
+      </div>
+    </div>
+    <label id="strip-amp" hidden>Amp <select id="amp-strip"></select></label>
+    <button data-adv class="btn small" id="midi-btn">Connect MIDI keyboard</button>
+    <span data-adv class="pill" id="midi-status">No MIDI device</span>
+  </section>
+
+  <canvas class="fx-bg" id="fx-bg" aria-hidden="true"></canvas>
+  <div class="fx-notes" id="fx-notes" aria-hidden="true"></div>
+  <div class="main" id="main">
+    <div class="modes">
+      <!-- FREE PLAY: live scale identifier -->
+      <section class="panel" id="mode-free" aria-labelledby="tab-free">
+        <h2>Free Play</h2>
+        <p class="lead">Play anything on the keyboard below (mouse, touch, computer keys or a MIDI keyboard). The scale identifier listens to the notes you play and suggests which scales they belong to.</p>
+        <div class="free-title"><h3>Scale identifier</h3><label class="check"><input id="free-ident" type="checkbox" checked> On</label></div>
+        <div id="free-result"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn small" id="free-clear">Clear notes</button>
+          <button class="btn small" id="free-example">Try an example riff</button>
+        </div>
+      </section>
+
+      <!-- SCALE MODE -->
+      <section class="panel" id="mode-scale" aria-labelledby="tab-scale" hidden>
+        <h2 id="scale-title">C Major</h2>
+        <p class="lead" id="scale-blurb"></p>
+        <div class="row">
+          <label>Root <select id="scale-root"></select></label>
+          <label>Scale <select id="scale-type"></select></label>
+          <button class="btn small" id="scale-play">▶ Hear the scale</button>
+          <label class="row" style="gap:6px"><input type="checkbox" id="scale-only"> Scale-only mode (lock other keys)</label>
+          <label data-adv class="row" style="gap:6px"><input type="checkbox" id="scale-degrees"> Show degrees</label>
+        </div>
+        <h3 data-adv>Step pattern</h3>
+        <div data-adv class="mono" id="scale-formula"></div>
+        <h3>Chords in this key <span class="note">(click to hear and highlight)</span></h3>
+        <div class="chips" id="scale-chords"></div>
+      </section>
+
+      <!-- EXERCISES -->
+      <section class="panel" id="mode-learn" aria-labelledby="tab-learn" hidden>
+        <h2>Exercises</h2>
+        <div id="ex-body"></div>
+      </section>
+
+      <!-- JAM MODE -->
+      <section class="panel" id="mode-jam" aria-labelledby="tab-jam" hidden>
+        <h2>Jam Mode</h2>
+        <p class="lead" id="jam-lead">Choose a song. The AI listens for its key, tempo and chords, then lights up the keys that fit so you can play along.</p>
+        <div class="row">
+          <label>Song <select id="jam-demo"></select></label>
+          <button class="btn small" id="jam-demo-load">Analyze demo</button>
+          <button class="btn small" id="jam-song-reanalyze" hidden title="Analyze again instead of using the saved result">Re-analyze</button>
+          <button class="btn small" id="jam-song-remove" hidden>Remove</button>
+          <span class="note">or</span>
+          <label class="btn small" for="jam-file">Upload audio…</label>
+          <input id="jam-file" type="file" accept="audio/*" hidden>
+        </div>
+        <div class="drop" id="jam-drop" style="margin-top:10px">Drop an MP3, WAV, OGG or M4A file here</div>
+
+        <div id="jam-state" style="margin-top:12px" aria-live="polite"></div>
+
+        <div id="jam-result" hidden>
+          <div class="facts" style="margin-top:12px">
+            <div class="fact"><span>Key</span><b id="jam-key">–</b><span id="jam-key-conf"></span></div>
+            <div class="fact"><span>Tempo</span><b id="jam-bpm">–</b><span id="jam-bpm-conf"></span></div>
+            <div class="fact"><span>Now playing chord</span><b id="jam-chord">–</b><span id="jam-chord-rn"></span></div>
+            <div data-adv class="fact"><span>Song length</span><b id="jam-len">–</b><span id="jam-src"></span></div>
+            <div data-adv class="fact"><span>Tuning</span><b id="jam-hz">–</b><span id="jam-hz-note"></span></div>
+          </div>
+
+          <h3 data-adv>Correct the key if it sounds wrong</h3>
+          <div data-adv class="row">
+            <label>Key <select id="jam-key-root"></select></label>
+            <select id="jam-key-scale" aria-label="Key scale"></select>
+            <button class="btn small" id="jam-key-undo" hidden>Undo change</button>
+            <span class="note" id="jam-key-note"></span>
+          </div>
+
+          <details data-adv class="engine-compare" id="jam-compare" hidden>
+            <summary><span id="jam-engine-note"></span></summary>
+            <table class="compare"><thead><tr><th></th><th>Built-in engine</th><th>AI helper</th></tr></thead><tbody id="jam-compare-rows"></tbody></table>
+          </details>
+          <p data-adv class="note" id="jam-helper-fail" hidden></p>
+
+          <h3 data-adv>Song map</h3>
+          <div data-adv class="timeline" id="jam-timeline">
+            <div class="lane" id="jam-sections"></div>
+            <div class="lane" id="jam-chords"></div>
+            <div class="playhead" id="jam-playhead"></div>
+          </div>
+
+          <h3>Listen</h3>
+          <div class="transport">
+            <button class="btn primary" id="jam-play">▶ Play</button>
+            <button class="btn" id="jam-stop">■ Stop</button>
+            <input type="range" id="jam-seek" min="0" max="100" step="0.1" value="0" aria-label="Song position">
+            <span class="mono" id="jam-time">0:00</span>
+            <label class="row tempo-ctl" style="gap:6px">Tempo
+              <input type="range" id="jam-tempo" min="50" max="150" step="1" value="100" aria-describedby="jam-tempo-val">
+              <span class="mono" id="jam-tempo-val">100%</span>
+            </label>
+            <button class="btn small" id="jam-tempo-reset" hidden title="Back to the song's own tempo">100%</button>
+            <label data-adv class="row" style="gap:6px">Track <input type="range" id="jam-track-vol" min="0" max="1" step="0.01" value="0.7"></label>
+          </div>
+
+          <div class="beat-lights" id="jam-beats" hidden aria-hidden="true"><span class="bl-label">Beat</span><span class="bl-dots" id="jam-beat-dots"></span><b class="mono" id="jam-beat-num">–</b><span class="note" id="jam-beat-src"></span></div>
+          <p class="note" id="jam-tempo-note" hidden></p>
+
+          <div class="subtabs" role="tablist" aria-label="Jam tools">
+            <button class="subtab" role="tab" id="jt-along" data-jt="along" aria-selected="true">Play along</button>
+            <button class="subtab" role="tab" id="jt-riff" data-jt="riff" aria-selected="false">Riff Mode</button>
+            <button class="subtab" role="tab" id="jt-guitar" data-jt="guitar" aria-selected="false">Guitar</button>
+            <button class="subtab" role="tab" id="jt-stems" data-jt="stems" aria-selected="false">Instruments</button>
+          </div>
+
+          <!-- INSTRUMENTS (stem separation by the AI helper) -->
+          <div id="jam-stems" hidden>
+            <p class="note" style="margin:8px 0">The AI splits the song into its instruments so you can mute, solo or turn each one down, for example mute the guitar and play that part yourself.</p>
+            <div id="stems-state" aria-live="polite"></div>
+            <div class="mixer" id="stems-mixer" hidden></div>
+          </div>
+
+          <div id="jam-along">
+          <div class="toggles" style="margin-top:8px">
+            <label><input type="checkbox" id="g-scale" checked> Highlight the scale</label>
+            <label><input type="checkbox" id="g-chord" checked> Highlight chord tones</label>
+            <label><input type="checkbox" id="g-suggest" checked> Suggest notes to play</label>
+            <button class="btn small" id="g-regen">↻ New suggestion</button>
+            <button data-adv class="btn small" id="g-undo" disabled>Undo suggestion</button>
+            <label class="row" id="jam-mute-row" hidden style="gap:6px">Mute in the song <select id="jam-mute"></select></label>
+          </div>
+          </div>
+
+          <!-- RIFF MODE -->
+          <div id="jam-riff" hidden>
+            <p class="note" style="margin:8px 0">The AI listens for the lead line, finds the riff that repeats, and shows you how to play it.</p>
+            <div class="row" id="riff-src-row" hidden style="margin-bottom:8px"><label class="row" style="gap:6px">Riff from <select id="riff-src"></select></label><span class="note">Each separated instrument was listened to on its own; the clearest riff is picked first.</span></div>
+            <div class="row" id="riff-inst-row" hidden style="margin-bottom:8px"><span class="note" id="riff-inst"></span><label class="row" style="gap:6px"><input type="checkbox" id="riff-inst-match" checked> Match the sound</label></div>
+            <div id="riff-state" aria-live="polite"></div>
+            <div id="riff-body" hidden>
+              <div class="roll" id="riff-roll" aria-label="Riff notes"></div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn small" id="riff-hear">▶ Hear the riff</button>
+                <button data-adv class="btn small" id="riff-jump">Jump to the riff in the song</button>
+                <span data-adv class="note">Octave</span>
+                <button data-adv class="btn small" id="riff-down" aria-label="Move riff down an octave">−</button>
+                <button data-adv class="btn small" id="riff-up" aria-label="Move riff up an octave">+</button>
+              </div>
+              <h3>Practice</h3>
+              <div class="row">
+                <label class="row" style="gap:6px"><input type="radio" name="riff-mode" id="riff-mode-step" value="step" checked> Step by step</label>
+                <label class="row" style="gap:6px"><input type="radio" name="riff-mode" id="riff-mode-time" value="time"> Play in time with the song</label>
+                <label data-adv class="row" style="gap:6px"><input type="checkbox" id="riff-loop" checked> Loop</label>
+                <button class="btn small primary" id="riff-start">Start practice</button>
+                <button class="btn small" id="riff-stop" hidden>Stop</button>
+              </div>
+              <p class="note" id="riff-help" style="margin:6px 0 0">Play the key marked 1. The next one lights up when you get it right. Number keys work too.</p>
+            </div>
+          </div>
+          <!-- GUITAR -->
+          <div id="jam-guitar" hidden>
+            <p class="note" style="margin:8px 0">Plug your guitar into your audio interface and play along. The keyboard below turns into a fretboard showing every place the scale's notes are, and the notes you play.</p>
+            <div class="guitar-grid">
+              <fieldset class="set-group">
+                <legend>Input</legend>
+                <div class="row">
+                  <button class="btn small primary" id="gtr-connect">Connect guitar</button>
+                  <span class="pill" id="gtr-status">Not connected</span>
+                </div>
+                <label>Interface <select id="gtr-device"><option value="">Default input</option></select></label>
+                <label data-adv>Input <select id="gtr-channel"><option value="0">Input 1</option></select></label>
+                <div class="row">
+                  <button class="btn small" id="gtr-find">Find my guitar</button>
+                  <span class="note" id="gtr-find-note">Strum when asked; checks every input.</span>
+                </div>
+                <div class="meter" aria-label="Input level"><i id="gtr-meter"></i></div>
+                <p data-adv class="note mono" id="gtr-info"></p>
+              </fieldset>
+              <fieldset class="set-group">
+                <legend>Amp</legend>
+                <label>Amp <select id="gtr-amp"></select></label>
+                <label data-adv>Output
+                  <select id="gtr-stereo">
+                    <option value="mono">Mono</option>
+                    <option value="stereo">Stereo (wide, with room)</option>
+                  </select>
+                </label>
+                <label data-adv>Drive <input type="range" id="gtr-drive" min="0" max="10" step="0.1" value="5"></label>
+                <label data-adv>Bass <input type="range" id="gtr-bass" min="-12" max="12" step="0.5" value="0"></label>
+                <label data-adv>Mid <input type="range" id="gtr-mid" min="-12" max="12" step="0.5" value="0"></label>
+                <label data-adv>Treble <input type="range" id="gtr-treble" min="-12" max="12" step="0.5" value="0"></label>
+                <label>Guitar volume <input type="range" id="gtr-vol" min="0" max="1.5" step="0.01" value="0.8"></label>
+                <label class="check"><input type="checkbox" id="gtr-monitor" checked> Hear my guitar through the amp</label>
+              </fieldset>
+              <fieldset class="set-group">
+                <legend>Tuner</legend>
+                <div class="tuner" id="gtr-tuner" aria-live="off">
+                  <div class="tuner-note" id="tuner-note">–</div>
+                  <div class="tuner-scale"><i id="tuner-needle"></i></div>
+                  <div class="row tuner-read"><span id="tuner-cents">Play one string</span><span class="mono" id="tuner-hz"></span></div>
+                </div>
+                <label data-adv>Reference A4 (Hz) <input type="number" id="gtr-ref" min="400" max="480" step="0.1" value="440"></label>
+                <div class="row">
+                  <button class="btn small" id="gtr-ref-song" disabled>Match the song</button>
+                  <button data-adv class="btn small" id="gtr-ref-440">440 Hz</button>
+                </div>
+                <label data-adv>Guitar tuning <select id="gtr-tuning"></select></label>
+              </fieldset>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <span class="note" id="gtr-stats">Notes you play show up on the fretboard.</span>
+              <span class="pill tune-warn" id="gtr-tune-warn" hidden></span>
+            </div>
+          </div>
+          <p class="feedback" id="jam-feedback" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="panel" id="mode-settings" aria-labelledby="tab-settings" hidden>
+        <h2>Settings</h2>
+        <p class="lead">Changes apply right away and are remembered on this device.</p>
+        <div class="settings-grid">
+          <fieldset class="set-group" id="level-settings">
+            <legend>Detail level</legend>
+            <label>Show
+              <select id="set-level">
+                <option value="beginner">Beginner: just the essentials</option>
+                <option value="advanced">Advanced: every control and detail</option>
+              </select>
+            </label>
+            <p class="note">Beginner hides fine-tuning like the song map, key correction, amp EQ and audio driver settings. Nothing is lost; switch back any time.</p>
+          </fieldset>
+          <fieldset class="set-group">
+            <legend>Keyboard</legend>
+            <label>Size
+              <select id="set-octaves">
+                <option value="2">2 octaves</option>
+                <option value="3">3 octaves</option>
+                <option value="4">4 octaves</option>
+              </select>
+            </label>
+            <p class="note">Press <span class="mono">1</span>–<span class="mono">9</span> on the number row or numpad to play the key marked with that number.</p>
+          </fieldset>
+          <fieldset class="set-group">
+            <legend>Guidance and display</legend>
+            <label>Suggested phrase length
+              <select id="set-phrase">
+                <option value="3">3 notes</option>
+                <option value="4">4 notes</option>
+                <option value="5">5 notes</option>
+                <option value="6">6 notes</option>
+                <option value="8">8 notes</option>
+              </select>
+            </label>
+            <label>Dark mode
+              <select id="set-theme">
+                <option value="system">Match my system</option>
+                <option value="light">Off</option>
+                <option value="dark">On</option>
+              </select>
+            </label>
+          </fieldset>
+          <fieldset class="set-group" id="access-settings" data-adv>
+            <legend>Accessibility</legend>
+            <label>Highlight colours
+              <select id="set-palette">
+                <option value="default">Default (gold, teal, coral)</option>
+                <option value="okabe">Colour-blind safe (yellow, sky blue, vermilion)</option>
+                <option value="redgreen">Red-green colour blindness (amber, blue, magenta)</option>
+                <option value="blueyellow">Blue-yellow colour blindness (pink, teal, dark red)</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </label>
+            <div class="swatches" id="set-palette-custom" hidden>
+              <label><input type="color" id="set-col-scale"> In the scale</label>
+              <label><input type="color" id="set-col-chord"> Chord tone</label>
+              <label><input type="color" id="set-col-next"> Play next</label>
+              <label><input type="color" id="set-col-root"> Key root</label>
+            </div>
+            <div class="swatch-preview" id="set-palette-preview" aria-hidden="true"></div>
+            <label class="check"><input id="set-pattern" type="checkbox"> Stripes on chord tones, so they don't rely on colour alone</label>
+            <label>Mode colours
+              <select id="set-modecol">
+                <option value="colour">A colour for each mode</option>
+                <option value="calm">One calm colour everywhere</option>
+              </select>
+            </label>
+            <label class="check"><input id="set-contrast" type="checkbox"> High contrast (darker text, stronger borders)</label>
+            <label>Text size
+              <select id="set-textsize">
+                <option value="100">Normal</option>
+                <option value="112">Large</option>
+                <option value="125">Larger</option>
+                <option value="140">Largest</option>
+              </select>
+            </label>
+            <label class="check"><input id="set-motion" type="checkbox"> Reduce motion (no animations or moving background)</label>
+          </fieldset>
+          <fieldset class="set-group" id="coach-ctx-settings">
+            <legend>AI Coach</legend>
+            <div class="row"><button class="btn small" id="set-coach-reset">Reset coach context</button><span class="note" id="set-coach-reset-note" aria-live="polite"></span></div>
+            <p class="note">The coach forgets the conversation so far and starts fresh; your messages stay on screen. It also does this by itself when the chat gets too long for the model.</p>
+          </fieldset>
+          <fieldset data-adv class="set-group" id="staff-settings">
+            <legend>Staff</legend>
+            <label class="check"><input id="set-staff" type="checkbox" checked> Staff follow-along: write the notes you play on a staff under the keyboard</label>
+            <label class="check"><input id="set-staff-marks" type="checkbox" checked> Theory marks: clef, bar lines, rests, interval names and chord names</label>
+            <label class="check"><input id="set-staff-jam" type="checkbox" checked> Jam staff: a second staff with Jam Mode's suggested notes</label>
+            <p class="note">An Advanced feature: in Beginner mode the staff is hidden.</p>
+          </fieldset>
+          <fieldset data-adv class="set-group" id="analysis-settings">
+            <legend>Song analysis</legend>
+            <label>Engine
+              <select id="set-engine">
+                <option value="builtin">Built-in (runs in the app)</option>
+                <option value="helper">AI helper on this computer</option>
+              </select>
+            </label>
+            <label id="set-helper-url-row">Helper address <input id="set-helper-url" placeholder="http://127.0.0.1:8765"></label>
+            <label class="check"><input id="set-helper-sep" type="checkbox"> Separate the instruments first (Demucs: slower, best with a GPU)</label>
+            <div class="row"><button class="btn small" id="set-helper-check">Check the helper</button><span class="note" id="set-helper-status" aria-live="polite"></span></div>
+            <p class="note">The AI helper is a separate program (the <span class="mono">ai-helper</span> folder) that runs chord, beat and key models on your computer, and splits songs into instruments for Jam Mode › Instruments. If it isn't running, the built-in engine is used.</p>
+          </fieldset>
+          <fieldset data-adv class="set-group" id="audio-settings">
+            <legend>Audio input (guitar)</legend>
+            <label>Sample rate
+              <select id="set-rate">
+                <option value="auto">Match my interface</option>
+                <option value="44100">44.1 kHz</option>
+                <option value="48000">48 kHz</option>
+                <option value="88200">88.2 kHz</option>
+                <option value="96000">96 kHz</option>
+              </select>
+            </label>
+            <label>Latency
+              <select id="set-latency">
+                <option value="lowest">Lowest (may crackle on slow computers)</option>
+                <option value="interactive">Balanced</option>
+                <option value="safe">Safe (more delay, no crackles)</option>
+              </select>
+            </label>
+            <div class="row"><button class="btn small" id="set-check-audio">Check my interface</button></div>
+            <ul class="checks" id="audio-checks"></ul>
+            <p class="note">About ASIO: the app's audio runs inside a browser engine, which uses your system audio (WASAPI on Windows) and can't load ASIO drivers. For the least delay, pick Lowest latency, match the sample rate, and set a small buffer (64–128 samples) in your interface's own control panel.</p>
+          </fieldset>
+        </div>
+      <!-- AI SETUP GUIDE -->
+      <details class="guide guide-drop" id="mode-guide">
+        <summary><span>🤖 AI Coach setup</span><small>Install Qwen, connect the coach and check it works</small></summary>
+        <p class="lead">The coach runs Qwen on your own computer through Ollama, so your questions never leave it. Setup takes about ten minutes, most of it downloading the model. Everything else in the app works without it.</p>
+
+        <div class="grid2">
+          <div>
+            <h3>Requirements</h3>
+            <table class="req">
+              <tr><th>Part</th><th>Minimum</th><th>Recommended</th></tr>
+              <tr><td>Graphics card</td><td>None (runs on CPU, slower)</td><td>NVIDIA or AMD with 8 GB+ VRAM, or Apple silicon</td></tr>
+              <tr><td>Memory (RAM)</td><td>8 GB</td><td>16 GB or more</td></tr>
+              <tr><td>Free disk space</td><td>5 GB</td><td>10 GB</td></tr>
+              <tr><td>System</td><td>Windows 10, macOS 12, or Linux</td><td>Windows 11, macOS 14+</td></tr>
+              <tr><td>Software</td><td colspan="2">Ollama, and Chrome, Edge or Firefox</td></tr>
+            </table>
+            <p class="note">Our test machine (RTX 4080 Super, 64 GB RAM) answers in about 2.5 s; the very first answer after starting Ollama takes about 40 s while the model loads.</p>
+          </div>
+          <div>
+            <h3>Pick a model for your computer</h3>
+            <table class="req">
+              <tr><th>Model</th><th>Download</th><th>Good for</th></tr>
+              <tr><td class="mono">qwen2.5:3b</td><td>1.9 GB</td><td>Laptops, no graphics card</td></tr>
+              <tr><td class="mono">qwen2.5:7b-instruct</td><td>4.7 GB</td><td>Default. 8 GB+ graphics card</td></tr>
+              <tr><td class="mono">qwen2.5:14b</td><td>9 GB</td><td>16 GB+ graphics card, better answers</td></tr>
+            </table>
+            <p class="note">If you pick a different model, type its name under Coach connection below (Advanced detail level shows the Model box).</p>
+          </div>
+        </div>
+
+        <h3>Steps</h3>
+        <div class="subtabs" role="tablist" aria-label="Operating system">
+          <button class="subtab os" role="tab" data-os="win" aria-selected="true">Windows</button>
+          <button class="subtab os" role="tab" data-os="mac" aria-selected="false">macOS</button>
+          <button class="subtab os" role="tab" data-os="linux" aria-selected="false">Linux</button>
+        </div>
+        <ol class="steps" id="guide-steps"></ol>
+
+        <h3>Coach connection</h3>
+        <fieldset class="set-group coach-conn" id="coach-settings">
+          <label data-adv>Server type
+            <select id="coach-api">
+              <option value="ollama">Ollama (local)</option>
+              <option value="openai">OpenAI-compatible (LM Studio, vLLM, llama.cpp)</option>
+              <option value="offline">Offline helper only (no AI)</option>
+            </select>
+          </label>
+          <label>Server address <input id="coach-url" value="http://localhost:11434"></label>
+          <label data-adv>Model <input id="coach-model" value="qwen2.5:7b-instruct"></label>
+          <div class="row"><button class="btn small" id="coach-test">Test connection</button></div>
+          <p class="note">The coach runs Qwen on your own machine. Start Ollama with <span class="mono">OLLAMA_ORIGINS=*</span> so the browser can reach it. When it can't be reached, a built-in offline helper answers instead.</p>
+        </fieldset>
+
+        <h3>Check your setup</h3>
+        <div class="row">
+          <button class="btn primary small" id="guide-check">Run checks</button>
+          <span class="note">Uses the address and model from Coach connection above.</span>
+        </div>
+        <ul class="checks" id="guide-checks"></ul>
+
+      </details>
+        <div class="row" style="margin-top:14px">
+          <button class="btn small" id="set-reset">Reset all settings</button>
+          <span class="note" id="set-reset-note" aria-live="polite"></span>
+        </div>
+      </section>
+    </div>
+
+    <!-- AI COACH (Qwen) -->
+    <aside class="panel coach" id="coach" aria-label="AI coach" hidden>
+      <div class="coach-head" id="coach-head" title="Drag to move">
+        <h2>AI Coach</h2>
+        <div class="row">
+          <span class="pill" id="coach-status">Not checked</span>
+          <button class="btn small" id="coach-new" title="Clear this conversation and start a new one">New chat</button>
+          <button class="btn small" id="coach-settings-btn" title="Coach connection settings (Settings › AI Coach setup)">Setup</button>
+          <button class="btn small" id="coach-close" aria-label="Close the coach">✕</button>
+        </div>
+      </div>
+      <div class="msgs" id="coach-msgs" aria-live="polite"></div>
+      <div class="quick" id="coach-quick"></div>
+      <form class="compose" id="coach-form">
+        <textarea id="coach-input" rows="2" placeholder="Ask about scales, chords, or what to play…"></textarea>
+        <button class="btn primary" id="coach-send" type="submit">Send</button>
+        <button class="btn" id="coach-cancel" type="button" hidden>Stop</button>
+      </form>
+      <p class="note">AI answers can be wrong. Check them by ear on the keyboard.</p>
+    </aside>
+  </div>
+
+  <section class="kbd-wrap" aria-label="Virtual keyboard">
+    <div class="kbd-bar">
+      <span class="piano-only">Octave</span>
+      <button class="btn small piano-only" id="oct-down" aria-label="Lower octave">−</button>
+      <span class="mono piano-only" id="oct-label">C3–C6</span>
+      <button class="btn small piano-only" id="oct-up" aria-label="Higher octave">+</button>
+      <span data-adv class="piano-only">Computer keys: <span class="mono">A W S E D F T G Y H U J K</span> · <span class="mono">Z</span>/<span class="mono">X</span> shift octave · <span data-adv><span class="mono">↑↓</span> pitch · <span class="mono">←→</span> mod · </span><span class="mono">1</span>–<span class="mono">9</span> play numbered keys</span>
+      <span class="guitar-only">Your guitar: <span class="mono">glowing dot</span> = the note you're playing, rings = your last notes · numbers = suggested notes</span>
+      <label class="check piano-only kbd-names"><input id="kbd-names" type="checkbox" checked> Note names</label>
+      <label class="check piano-only kbd-names" title="Show which computer key plays each piano key"><input id="kbd-keys" type="checkbox" checked> Key letters</label>
+      <div class="lcd" id="kbd-legend" role="status" aria-label="Keyboard lights">
+        <span class="lcd-row chord" data-lit="chord"><i class="led"></i>Chord tone</span>
+        <span class="lcd-row scale" data-lit="scale"><i class="led"></i>In scale</span>
+        <span class="lcd-row next" data-lit="next"><i class="led"></i>Play this next</span>
+      </div>
+    </div>
+    <div class="kbd-row">
+      <div data-adv class="wheels piano-only" aria-label="Performance wheels">
+        <div class="wheel-box">
+          <div class="wheel pitch" id="wheel-pitch" role="slider" tabindex="0" aria-label="Pitch bend" aria-valuemin="-2" aria-valuemax="2" aria-valuenow="0" title="Pitch bend: drag, ↑/↓ keys, or your MIDI pitch wheel"><span class="wheel-thumb"></span></div>
+          <span class="wheel-label">Pitch</span><span class="wheel-val mono" id="wheel-pitch-val">0</span>
+        </div>
+        <div class="wheel-box">
+          <div class="wheel mod" id="wheel-mod" role="slider" tabindex="0" aria-label="Modulation" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" title="Modulation (vibrato): drag, ←/→ keys, or your MIDI mod wheel"><span class="wheel-fill"></span><span class="wheel-thumb"></span></div>
+          <span class="wheel-label">Mod</span><span class="wheel-val mono" id="wheel-mod-val">0%</span>
+        </div>
+      </div>
+      <div class="kbd" id="kbd"></div>
+    </div>
+    <div class="fretboard" id="fretboard" hidden></div>
+  </section>
+  <div class="staff-room" id="staff-room" aria-hidden="true"></div>
+  <div class="brand brand-dock"><h1 id="brand-title" tabindex="0" role="button" title="Click me">♫ Music Theorizer</h1><small>Travelling Band</small></div>
+</div>
+
+<script src="js/theory.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/aihelper.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/library.js"></script>
+<script src="js/guitar.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/lesson-text.js"></script>
+<script src="js/exercises.js"></script>
+<script src="js/desktop.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

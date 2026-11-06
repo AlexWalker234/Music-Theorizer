@@ -1,0 +1,19 @@
+# Built desktop launchers (attach these to a GitHub Release instead)
+desktop/dist/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Optional large downloads made by the AI helper setup
+ai-helper/audiosep/
+ai-helper/.cache/
+*.ckpt
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
